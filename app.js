@@ -4,13 +4,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 //const expressHbs = require('express-handlebars');
 const errorController = require('./controllers/error')
-const sequelize = require('./util/database');
-const Product = require('./models/product');
+const mongoConnect = require('./util/database').mongoConnect;
 const User = require('./models/user');
-const Cart = require('./models/cart');
-const CartItem = require('./models/cart-item');
-const Order = require('./models/order');
-const OrderItem = require('./models/order-item');
 
 const app = express();
 
@@ -29,65 +24,29 @@ app.set('views', 'views');
 
 const adminRoutes = require('./routes/admin');
 const shopRoutes = require('./routes/shop');
+const { Console } = require('console');
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use((req, res, next) => {
-    User.findByPk(1)
+ app.use((req, res, next) => {
+    User.findById('6764f4026c7e06777a207928')
     .then(user => {
-        req.user = user;
+        req.user = new User(user.username, user.email, user.cart, user._id);
         next();
-    })
+     })
     .catch(err => {
         console.log(err);
     })
 });
-
+ 
 app.use('/admin', adminRoutes);
 app.use(shopRoutes);
 
 app.use(errorController.get404);
 
-Product.belongsTo(User, {constraints: true, onDelete: 'CASCADE'});
-User.hasMany(Product); //Optional because of above line
-User.hasOne(Cart);
-Cart.belongsTo(User); //Optional if we already have the User.hasOne(Cart);
-Cart.belongsToMany(Product, {through: CartItem});
-Product.belongsToMany(Cart, {through: CartItem});
-Order.belongsTo(User);
-User.hasMany(Order);
-Order.belongsToMany(Product, { through: OrderItem});
-
-
-//force: true will never be used in production as we do not want to overwrite existing tables
-//sequelize.sync({force: true})
-sequelize.sync()
-.then(result => {
-    //Some dummy code
-    User.findByPk(1)
-    .then(user => {
-        if(!user){
-            User.create({
-                name: 'Kousik Das', 
-                email: 'das.kousik2223@gmail.com'});
-        }
-        return user;
-    })
-    .then(user => {
-        //console.log('User is created');
-        return user.createCart();
-
-    })
-    .then(cart => {
-        app.listen(3000);
-    })
-    .catch(err => {
-        console.log(err);
-    });
-})
-.catch(err => {
-    console.log(err);
+mongoConnect(() => {
+    app.listen(3000);
 });
 
 
